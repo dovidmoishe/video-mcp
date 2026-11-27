@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos:
+    name: macOS (one-line install, tests)
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      # The exact commit under test, so the installer builds what this run checked out.
+      VIDEO_MCP_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Homebrew dependencies (FFmpeg 8 beside Homebrew's default 9.x)
+        run: |
+          brew install ffmpeg@8 pkg-config cmake
+          echo "PKG_CONFIG_PATH=$(brew --prefix ffmpeg@8)/lib/pkgconfig" >> "$GITHUB_ENV"
+          echo "FFMPEG_BIN=$(brew --prefix ffmpeg@8)/bin/ffmpeg" >> "$GITHUB_ENV"
+
+      - name: One-line installer (cargo install from GitHub at this commit)
+        run: curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/$VIDEO_MCP_REF/scripts/install.sh" | sh
+
+      - name: Lint
+        run: |
+          cargo fmt -- --check
+          cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Fixtures
+        run: |
+          pip install pillow
+          pwsh -NoProfile -File scripts/make-fixtures.ps1 -FFmpeg "$FFMPEG_BIN"
+          python scripts/make-visual-fixtures.py --ffmpeg "$FFMPEG_BIN"
+          curl -fsSL -o .local/fixtures/jfk.wav https://github.com/ggml-org/whisper.cpp/raw/master/samples/jfk.wav
+
+      - name: Tests, including native, fixture and speech tests
+        run: |
+          export VIDEO_FIXTURES="$PWD/.local/fixtures"
+          export VIDEO_WHISPER_MODEL="$HOME/.local/share/video-mcp/ggml-tiny.en.bin"
+          cargo test --locked -- --include-ignored
+          cargo test --locked --no-default-features
+
+      - name: MCP smoke test of the installed server
+        run: |
+          export VIDEO_WHISPER_MODEL="$HOME/.local/share/video-mcp/ggml-tiny.en.bin"
+          python scripts/mcp-smoke.py --server "$HOME/.cargo/bin/video-mcp"
+
+  windows:
+    name: Windows (one-line install)
+    runs-on: windows-2022
+    timeout-minutes: 90
+    env:
+      VIDEO_MCP_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: One-line installer (source zip at this commit, then setup.ps1)
+        shell: powershell
+        run: irm "https://raw.githubusercontent.com/${{ github.repository }}/$env:VIDEO_MCP_REF/scripts/install.ps1" | iex
+
+      - name: MCP smoke test of the installed server
+        shell: powershell
+        run: |
+          $root = Join-Path $env:LOCALAPPDATA 'video-mcp'
+          $ffmpeg = Join-Path $root '.local\ffmpeg-8.0-full_build-shared\bin'
+          $env:PATH = "$ffmpeg;$env:PATH"
+          New-Item -ItemType Directory -Force .local\fixtures | Out-Null
+          & "$ffmpeg\ffmpeg.exe" -hide_banner -loglevel error -y -f lavfi -i testsrc2=size=320x240:rate=25:duration=3 -f lavfi -i sine=frequency=440:sample_rate=48000:duration=3 -c:v libx264 -pix_fmt yuv420p -c:a aac .local\fixtures\av.mp4
+          if ($LASTEXITCODE -ne 0) { throw 'Generating the smoke-test video failed.' }
+          python scripts\mcp-smoke.py --server "$root\target\release\video-mcp.exe"

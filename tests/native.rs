@@ -46,6 +46,7 @@ fn display_matrices_match_ffmpeg_cli_autorotation() {
         height: 0.3,
     };
     // Each fixture stores the same 640x360 picture; only the display matrix differs.
+    let mut failures = Vec::new();
     for (name, rotation, transform) in [
         ("orientation-none", 0, T::None),
         ("orientation-r90", 90, T::Rotate90Counterclockwise),
@@ -104,13 +105,19 @@ fn display_matrices_match_ffmpeg_cli_autorotation() {
                 "{name} crop={:?}: mean |difference| {difference:.4}",
                 region.is_some()
             );
-            // A wrong orientation or mapping differs by tens of levels on average.
-            assert!(
-                difference < 1.0,
-                "{name} crop {region:?}: mean absolute difference {difference}"
-            );
+            // The CLI turns the decoded YUV frame and then converts it to RGB; we
+            // convert first and turn the RGB. The two orders can round differently:
+            // byte-identical with FFmpeg 8.0 on Windows x64, about one level on average
+            // with FFmpeg 8.1 on Apple silicon. A wrong transform or crop mapping
+            // differs by tens of levels on average.
+            if difference >= 4.0 {
+                failures.push(format!(
+                    "{name} crop {region:?}: mean absolute difference {difference}"
+                ));
+            }
         }
     }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 #[tokio::test]

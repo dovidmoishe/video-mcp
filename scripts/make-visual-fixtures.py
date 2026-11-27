@@ -1,10 +1,15 @@
 """Deterministic regression media and a synthetic visual diagnostic, using ordinary FFmpeg."""
-import argparse,json,pathlib,subprocess
+import argparse,json,pathlib,shutil,subprocess
 from PIL import Image,ImageDraw,ImageFont
-p=argparse.ArgumentParser();p.add_argument('--output',default='.local/fixtures');p.add_argument('--ffmpeg',default='.local/ffmpeg-8.0-full_build-shared/bin/ffmpeg.exe');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--output',default='.local/fixtures');p.add_argument('--ffmpeg',help='default: the Windows dev build in .local, else ffmpeg on PATH');a=p.parse_args()
 out=pathlib.Path(a.output);out.mkdir(parents=True,exist_ok=True)
-font_path='C:/Windows/Fonts/arial.ttf';font=ImageFont.truetype(font_path,28)
-ffmpeg=str(pathlib.Path(a.ffmpeg).resolve())
+bundled=pathlib.Path('.local/ffmpeg-8.0-full_build-shared/bin/ffmpeg.exe')
+ffmpeg=str(pathlib.Path(a.ffmpeg).resolve()) if a.ffmpeg else str(bundled.resolve()) if bundled.exists() else shutil.which('ffmpeg')
+if not ffmpeg:raise SystemExit('ffmpeg not found; pass --ffmpeg')
+fonts=['C:/Windows/Fonts/arial.ttf','/System/Library/Fonts/Supplemental/Arial.ttf','/Library/Fonts/Arial.ttf','/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf']
+font_path=next((f for f in fonts if pathlib.Path(f).exists()),None)
+if not font_path:raise SystemExit('no TrueType font found; install Arial or DejaVu Sans')
+font=ImageFont.truetype(font_path,28)
 # turn/display: store each frame turned by a PIL transpose and attach the ffmpeg
 # -display_rotation that turns it back, like phone footage. Players and the server
 # should show exactly the unturned drawing.

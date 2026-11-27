@@ -31,7 +31,8 @@ One crate, `video-mcp`, with a library and a binary.
 
   | Purpose | Scripts |
   |---|---|
-  | One-command setup (prerequisite check, pinned downloads, build, self-test) | `setup.ps1` |
+  | One-line installers (`curl \| sh` on macOS, `irm \| iex` on Windows) | `install.sh`, `install.ps1` |
+  | Windows setup (prerequisite check, pinned downloads, build, self-test) | `setup.ps1` |
   | Release build | `build-release.ps1` |
   | Fixtures | `make-fixtures.ps1`, `make-visual-fixtures.py` |
   | MCP smoke checks | `mcp-smoke.py`, `visual-smoke.py`, `watch-smoke.py`, `url-smoke.py` |
@@ -55,6 +56,8 @@ $env:VIDEO_FIXTURES = (Resolve-Path '.local/fixtures').Path   # after generating
 
 The native tests also need `.local/fixtures/jfk.wav`, from whisper.cpp's `samples/` folder.
 
+On macOS, install `brew install ffmpeg@8 pkg-config cmake powershell` and export `PKG_CONFIG_PATH="$(brew --prefix ffmpeg@8)/lib/pkgconfig"`. Pass `$(brew --prefix ffmpeg@8)/bin/ffmpeg` to both fixture scripts. CI (`.github/workflows/ci.yml`) runs the one-line installers on macOS and Windows, plus the full test suite on macOS, for every pull request.
+
 Before finishing a change, run:
 - `cargo fmt -- --check`
 - `cargo clippy --all-targets -- -D warnings`
@@ -76,6 +79,7 @@ Rerun `./scripts/make-fixtures.ps1` and `python scripts/make-visual-fixtures.py`
 
 ## Gotchas
 
+- **Platforms:** Windows and macOS (Apple silicon) are supported; Linux is untested. OCR uses Windows WinRT, and other platforms report it unavailable. The bindings target FFmpeg 8 (libavcodec 62). Homebrew's default `ffmpeg` is 9.x and unsupported, so use the side-by-side `ffmpeg@8`.
 - **Short paths:** keep the Cargo target folder's full path at or under 99 characters, including in worktrees and temp clones. whisper.cpp builds through MSBuild, whose file tracker fails past 260 characters (FTK1011, then CMake's "No CMAKE_C_COMPILER could be found"). `setup.ps1` checks this up front.
 - **Locked executables:** an MCP client locks the executable it runs. Build into `./scripts/build-release.ps1 -TargetDirectory target/<new>` instead of stopping the client. Don't edit client configs such as `~/.codex/config.toml` unless asked.
 - **PowerShell redirection:** in Windows PowerShell 5.1, `$ErrorActionPreference = 'Stop'` turns a native command's redirected stderr into a fatal error. Scripts here run cargo under `'Continue'` and check `$LASTEXITCODE`; keep that pattern for any native command that writes to stderr.

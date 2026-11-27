@@ -3,6 +3,11 @@ name = "video-mcp"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+description = "Local MCP server that lets coding agents watch and inspect video: frames, filmstrips, crops, OCR and speech."
+repository = "https://github.com/dovidmoishe/video-mcp"
+readme = "README.md"
+keywords = ["mcp", "video", "ffmpeg", "whisper", "agent"]
+categories = ["multimedia::video", "command-line-utilities"]
 # Kept from the former workspace so dependency resolution is unchanged.
 resolver = "2"
 
@@ -26,7 +31,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "signa
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2"
-ffmpeg-next = { version = "=8.0.0", optional = true, default-features = false, features = ["codec", "format", "software-scaling", "software-resampling"] }
+ffmpeg-next = { version = "=8.1.0", optional = true, default-features = false, features = ["codec", "format", "software-scaling", "software-resampling"] }
 whisper-rs = { version = "=0.16.0", optional = true, features = ["tracing_backend"] }
 
 [target.'cfg(windows)'.dependencies]

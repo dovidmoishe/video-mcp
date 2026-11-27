@@ -50,7 +50,7 @@ pub(crate) fn read(
             "OCR dimensions exceed Windows engine limits"
         );
         let mut bgra = Vec::with_capacity(width as usize * height as usize * 4);
-        for rgb in pixels.chunks_exact(3) {
+        for rgb in pixels.as_chunks::<3>().0 {
             bgra.extend_from_slice(&[rgb[2], rgb[1], rgb[0], 255]);
         }
         let writer = DataWriter::new()?;

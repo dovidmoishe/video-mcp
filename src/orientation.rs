@@ -202,8 +202,8 @@ mod tests {
     /// Rows of letters for a turned 3x2 picture whose stored rows are "abc"/"def".
     fn letters(pixels: &[u8], width: u32) -> Vec<String> {
         pixels
-            .chunks_exact(3)
-            .collect::<Vec<_>>()
+            .as_chunks::<3>()
+            .0
             .chunks(width as usize)
             .map(|row| {
                 row.iter()
@@ -297,7 +297,9 @@ mod tests {
         for transform in ALL {
             let (display, _, _) = transform.apply_rgb(stored.clone(), size, size);
             let marked: Vec<(u32, u32)> = display
-                .chunks_exact(3)
+                .as_chunks::<3>()
+                .0
+                .iter()
                 .enumerate()
                 .filter(|(_, p)| p[0] == 255)
                 .map(|(i, _)| (i as u32 % size, i as u32 / size))
