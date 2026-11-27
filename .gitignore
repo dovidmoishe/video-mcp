@@ -1,0 +1,5 @@
+/target
+/.local
+/frames
+*.bin
+__pycache__/
