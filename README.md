@@ -75,7 +75,7 @@ On Windows the entry also sets `PATH` to include FFmpeg's `bin` folder, so the s
 
 ## Manual build (Windows)
 
-The setup script wraps these steps. On macOS, the cargo commands above are the whole manual build. Versions are pinned to ffmpeg-next 8.0.0, whisper-rs 0.16.0 and rmcp 0.8.5; upgrading a native ABI or wrapper major version requires repeating the native validation. The build needs:
+The setup script wraps these steps. On macOS, the cargo commands above are the whole manual build. Versions are pinned to ffmpeg-next 8.1.0 (FFmpeg 8.0 and 8.1), whisper-rs 0.16.0 and rmcp 0.8.5; upgrading a native ABI or wrapper major version requires repeating the native validation. The build needs:
 - FFmpeg 8 **shared development** files: headers, `.lib` import libraries and DLLs. An ffmpeg.exe-only installation is insufficient.
 - LLVM/libclang for the bindings.
 - CMake for whisper.cpp.
