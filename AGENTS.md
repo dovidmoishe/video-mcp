@@ -76,6 +76,7 @@ Rerun `./scripts/make-fixtures.ps1` and `python scripts/make-visual-fixtures.py`
 
 ## Gotchas
 
+- **Short paths:** keep the Cargo target folder's full path at or under 99 characters, including in worktrees and temp clones. whisper.cpp builds through MSBuild, whose file tracker fails past 260 characters (FTK1011, then CMake's "No CMAKE_C_COMPILER could be found"). `setup.ps1` checks this up front.
 - **Locked executables:** an MCP client locks the executable it runs. Build into `./scripts/build-release.ps1 -TargetDirectory target/<new>` instead of stopping the client. Don't edit client configs such as `~/.codex/config.toml` unless asked.
 - **PowerShell redirection:** in Windows PowerShell 5.1, `$ErrorActionPreference = 'Stop'` turns a native command's redirected stderr into a fatal error. Scripts here run cargo under `'Continue'` and check `$LASTEXITCODE`; keep that pattern for any native command that writes to stderr.
 - **Pinned downloads:** `setup.ps1` pins the FFmpeg archive and Whisper model by SHA-256. Update the URL and hash together, and rerun the native tests, when changing either.
