@@ -38,18 +38,38 @@ function Get-Sha256([string]$Path) { (Get-FileHash -LiteralPath $Path -Algorithm
 
 function Save-Verified([string]$Url, [string]$Sha256, [string]$Path) {
     $partial = "$Path.partial"
+    if ((Test-Path -LiteralPath $partial) -and (Get-Sha256 $partial) -eq $Sha256) {
+        Move-Item -LiteralPath $partial -Destination $Path -Force # Finished earlier, not yet renamed.
+        return
+    }
     Write-Step "Downloading $Url"
-    # Retry transient network failures (DNS hiccups, timeouts, dropped connections).
+    $curl = Join-Path $env:SystemRoot 'System32\curl.exe' # Included with Windows 10 1803+.
+    # Retry transient failures. curl abandons stalled transfers (under 1 KB/s for
+    # 60 s) and each retry resumes the partial file instead of starting over.
     for ($attempt = 1; ; $attempt++) {
-        try {
-            Invoke-WebRequest -Uri $Url -OutFile $partial -UseBasicParsing
-            break
-        } catch {
-            if (Test-Path -LiteralPath $partial) { Remove-Item -LiteralPath $partial -Force }
-            if ($attempt -ge 4) { throw "Download failed after $attempt attempts: $Url ($($_.Exception.Message))" }
-            Write-Host "    Attempt $attempt failed: $($_.Exception.Message) Retrying in $(10 * $attempt) seconds."
-            Start-Sleep -Seconds (10 * $attempt)
+        if (Test-Path -LiteralPath $curl) {
+            # curl reports errors on stderr; rely on its exit code (see build-release.ps1).
+            $ErrorActionPreference = 'Continue'
+            & $curl --location --fail --silent --show-error --connect-timeout 30 --speed-limit 1024 --speed-time 60 --continue-at - --output $partial $Url
+            $exitCode = $LASTEXITCODE
+            $ErrorActionPreference = 'Stop'
+            $failure = if ($exitCode -eq 0) { $null } else { "curl exit code $exitCode" }
+        } else {
+            try {
+                Invoke-WebRequest -Uri $Url -OutFile $partial -UseBasicParsing -ErrorAction Stop
+                $failure = $null
+            } catch {
+                $failure = $_.Exception.Message
+                if (Test-Path -LiteralPath $partial) { Remove-Item -LiteralPath $partial -Force }
+            }
         }
+        if (-not $failure) { break }
+        if ($attempt -ge 5) {
+            if (Test-Path -LiteralPath $partial) { Remove-Item -LiteralPath $partial -Force }
+            throw "Download failed after $attempt attempts: $Url ($failure)"
+        }
+        Write-Host "    Attempt $attempt failed ($failure). Retrying in $(10 * $attempt) seconds."
+        Start-Sleep -Seconds (10 * $attempt)
     }
     $actual = Get-Sha256 $partial
     if ($actual -ne $Sha256) {
