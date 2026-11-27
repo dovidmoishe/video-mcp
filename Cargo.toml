@@ -3,6 +3,11 @@ name = "video-mcp"
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
+description = "Local MCP server that lets coding agents watch and inspect video: frames, filmstrips, crops, OCR and speech."
+repository = "https://github.com/dovidmoishe/video-mcp"
+readme = "README.md"
+keywords = ["mcp", "video", "ffmpeg", "whisper", "agent"]
+categories = ["multimedia::video", "command-line-utilities"]
 # Kept from the former workspace so dependency resolution is unchanged.
 resolver = "2"
 

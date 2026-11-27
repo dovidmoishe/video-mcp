@@ -4,57 +4,78 @@ A local Rust MCP server that lets a coding agent inspect video. It provides meta
 
 It is a single Rust crate, `video-mcp`. The media engine lives in `src/`, the MCP tool layer in `src/mcp.rs`, and the stdio entry point in `src/main.rs`. [AGENTS.md](AGENTS.md) covers the layout, invariants and contributor workflow. [SKILL.md](SKILL.md) is the tool-usage workflow to give agents.
 
-## Install (Windows 10/11, x64)
+## Install
 
-1. **Prerequisites.** Skip any you already have, then open a new terminal so PATH changes apply:
+Each installer builds the server from source, downloads the Whisper speech model, checks that the server starts, and prints the registration commands for your agent with your paths filled in. The first build takes 5–20 minutes. Rerunning an installer updates the server, and finished steps are skipped.
 
-   ```powershell
-   winget install Rustlang.Rustup
-   winget install Microsoft.VisualStudio.2022.BuildTools --override "--wait --quiet --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
-   winget install LLVM.LLVM
-   winget install Kitware.CMake
-   ```
+### macOS (Apple silicon)
 
-2. **Get the code and run setup.** Clone to a short path such as `C:\src\video-mcp`. whisper.cpp's MSBuild build fails when the build folder's path gets long (Windows' 260-character limit), and setup stops early if it would.
+Install Xcode's command line tools (`xcode-select --install`), [Homebrew](https://brew.sh) and [Rust](https://rustup.rs), then:
 
-   ```powershell
-   git clone https://github.com/dovidmoishe/video-mcp.git C:\src\video-mcp
-   cd C:\src\video-mcp
-   powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
-   ```
+```sh
+curl -fsSL https://raw.githubusercontent.com/dovidmoishe/video-mcp/main/scripts/install.sh | sh
+```
 
-   The script does the following:
-   - Checks the prerequisites and lists anything missing, with the install command for each.
-   - Downloads the FFmpeg 8 shared development files (about 90 MB) and the Whisper `tiny.en` speech model (about 78 MB) into `.local/`, verifying pinned SHA-256 hashes.
-   - Builds the release server; the first build takes 10–20 minutes.
-   - Starts the server once to check it works.
-   - Prints registration commands with your paths filled in.
+- **Dependencies:** installs `ffmpeg@8`, `pkg-config` and `cmake` with Homebrew if needed. Homebrew's default `ffmpeg` is 9.x, which this server does not support yet; `ffmpeg@8` installs beside it.
+- **Where things go:** the server is built with `cargo install` into `~/.cargo/bin/video-mcp`. The speech model and build cache go in `~/.local/share/video-mcp/`.
+- **OCR:** local OCR is Windows-only for now. On macOS, `include_ocr` reports OCR as unavailable; everything else works.
+- **Options:** set `VIDEO_MCP_NO_SPEECH_MODEL=1` to skip the 78 MB model, or `VIDEO_MCP_REF=<branch, tag or commit>` to install another version.
 
-   Rerunning skips finished steps. Options:
-   - `-NoSpeechModel` skips the speech model; transcription then reports `model_unconfigured`.
-   - `-TargetDirectory target/<name>` builds into a new folder while an agent still runs the old executable, which Windows keeps locked.
+### Windows 10/11 (x64)
 
-3. **Register the server with your agent**, then restart the agent. Paste the commands the setup script printed. They have this shape:
-   - Codex: `codex mcp add video-local --env "PATH=<ffmpeg bin>;C:\Windows\System32;C:\Windows" --env "VIDEO_WHISPER_MODEL=<model>" -- "<repo>\target\release\video-mcp.exe"`
-   - Claude Code: `claude mcp add video-local -s user -e "PATH=..." -e "VIDEO_WHISPER_MODEL=..." -- "<repo>\target\release\video-mcp.exe"`
-   - Claude Desktop (`%APPDATA%\Claude\claude_desktop_config.json`), Cursor (`~/.cursor/mcp.json`) and other JSON clients: add the printed `video-local` entry under `mcpServers`.
+Install the build tools, skipping any you already have, then open a new terminal:
 
-   `PATH` must include FFmpeg's `bin` folder so the server can load the FFmpeg DLLs. The server speaks MCP over stdio: standard output carries only JSON-RPC, and logs go to stderr. Give it absolute local video paths.
+```powershell
+winget install Rustlang.Rustup
+winget install Microsoft.VisualStudio.2022.BuildTools --override "--wait --quiet --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+winget install LLVM.LLVM
+winget install Kitware.CMake
+```
 
-4. **Optional: install the skill.** [SKILL.md](SKILL.md) teaches the agent the recommended video workflow. For Codex:
+Then:
 
-   ```powershell
-   New-Item -ItemType Directory -Force "$HOME\.codex\skills\understand-video" | Out-Null
-   Copy-Item SKILL.md "$HOME\.codex\skills\understand-video\SKILL.md"
-   ```
+```powershell
+irm https://raw.githubusercontent.com/dovidmoishe/video-mcp/main/scripts/install.ps1 | iex
+```
 
-   For Claude Code, use `$HOME\.claude\skills\understand-video\` instead.
+This downloads the source into `%LOCALAPPDATA%\video-mcp` and runs `scripts\setup.ps1` there. Setup does the following:
+- Checks the prerequisites and lists anything missing, with the install command for each.
+- Downloads the FFmpeg 8 shared development files (about 90 MB) and the speech model, verifying pinned SHA-256 hashes.
+- Builds the release server and checks that it starts.
 
-Only Windows is supported. The code has non-Windows fallbacks (OCR reports itself unavailable), but Linux and macOS builds are untested, and the scripts are PowerShell.
+To work from a clone instead, clone to a short path such as `C:\src\video-mcp` and run `powershell -ExecutionPolicy Bypass -File scripts\setup.ps1`. whisper.cpp's MSBuild build fails when the build folder's path is long (Windows' 260-character limit), and setup stops early if it would. Setup options:
+- `-NoSpeechModel` skips the speech model.
+- `-TargetDirectory target/<name>` builds into a new folder while an agent still runs the old executable, which Windows keeps locked.
 
-## Manual build
+### With cargo
 
-The setup script wraps these steps. Versions are pinned to ffmpeg-next 8.0.0, whisper-rs 0.16.0 and rmcp 0.8.5; upgrading a native ABI or wrapper major version requires repeating the native validation. The build needs:
+On macOS:
+
+```sh
+brew install ffmpeg@8 pkg-config cmake
+PKG_CONFIG_PATH="$(brew --prefix ffmpeg@8)/lib/pkgconfig" cargo install --locked --git https://github.com/dovidmoishe/video-mcp
+```
+
+Then download [ggml-tiny.en.bin](https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin) and point `VIDEO_WHISPER_MODEL` at it if you want speech.
+- **Windows:** `cargo install` needs `FFMPEG_DIR` set to FFmpeg 8 shared development files, `LIBCLANG_PATH`, CMake on PATH, and FFmpeg's `bin` on the server's PATH at runtime. The Windows installer above sets all of that up, so prefer it.
+- **Linux:** untested. It needs FFmpeg 8 development packages that pkg-config can find, CMake and clang.
+
+### Register with your agent
+
+Paste the command the installer printed, then restart the agent. They have this shape:
+- Codex: `codex mcp add video-local --env "VIDEO_WHISPER_MODEL=<model>" -- "<path to video-mcp>"`
+- Claude Code: `claude mcp add video-local -s user -e "VIDEO_WHISPER_MODEL=<model>" -- "<path to video-mcp>"`
+- Claude Desktop, Cursor (`~/.cursor/mcp.json`) and other JSON clients: add the printed `video-local` entry under `mcpServers`. Claude Desktop's config file is `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS and `%APPDATA%\Claude\claude_desktop_config.json` on Windows.
+
+On Windows the entry also sets `PATH` to include FFmpeg's `bin` folder, so the server can load the FFmpeg DLLs. The server speaks MCP over stdio: standard output carries only JSON-RPC, and logs go to stderr. Give it absolute local video paths.
+
+### Optional: install the skill
+
+[SKILL.md](SKILL.md) teaches the agent the recommended video workflow. Put it in `~/.codex/skills/understand-video/SKILL.md` for Codex or `~/.claude/skills/understand-video/SKILL.md` for Claude Code; the installers print the exact command.
+
+## Manual build (Windows)
+
+The setup script wraps these steps. On macOS, the cargo commands above are the whole manual build. Versions are pinned to ffmpeg-next 8.0.0, whisper-rs 0.16.0 and rmcp 0.8.5; upgrading a native ABI or wrapper major version requires repeating the native validation. The build needs:
 - FFmpeg 8 **shared development** files: headers, `.lib` import libraries and DLLs. An ffmpeg.exe-only installation is insufficient.
 - LLVM/libclang for the bindings.
 - CMake for whisper.cpp.
@@ -167,7 +188,9 @@ python scripts/visual-smoke.py --server target/release/video-mcp.exe
 python scripts/url-smoke.py --server target/debug/video-mcp.exe
 ```
 
-The ignored tests need the generated fixtures, FFmpeg, the Whisper model, `.local/fixtures/jfk.wav` and an installed Windows OCR language. `visual-smoke.py` and `watch-smoke.py` take their server environment from the Codex `video-local` registration, so they need the `codex` CLI. Without default features, native processing is deliberately unavailable and returns explicit errors, but the MCP schemas and pure Rust contracts still test. With FFmpeg but no Whisper build, use `--no-default-features --features native`.
+The ignored tests need the generated fixtures, FFmpeg, the Whisper model and `.local/fixtures/jfk.wav` (from whisper.cpp's `samples/` folder). The OCR test also needs an installed Windows OCR language and runs only on Windows.
+
+On macOS, first export `PKG_CONFIG_PATH="$(brew --prefix ffmpeg@8)/lib/pkgconfig"`. Run the PowerShell fixture script with PowerShell 7 (`brew install powershell`), passing Homebrew's FFmpeg 8: `pwsh scripts/make-fixtures.ps1 -FFmpeg "$(brew --prefix ffmpeg@8)/bin/ffmpeg"`, and pass the same path to `make-visual-fixtures.py --ffmpeg`. CI (`.github/workflows/ci.yml`) runs the full suite on macOS and the one-line installer on both platforms. `visual-smoke.py` and `watch-smoke.py` take their server environment from the Codex `video-local` registration, so they need the `codex` CLI. Without default features, native processing is deliberately unavailable and returns explicit errors, but the MCP schemas and pure Rust contracts still test. With FFmpeg but no Whisper build, use `--no-default-features --features native`.
 
 Profiling calls the server over MCP with the environment above:
 

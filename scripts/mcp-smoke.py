@@ -9,7 +9,7 @@ import queue
 import threading
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--server", default="target/debug/video-mcp.exe")
+parser.add_argument("--server", default="target/debug/video-mcp" + (".exe" if os.name == "nt" else ""))
 parser.add_argument("--media", default=".local/fixtures/av.mp4")
 args = parser.parse_args()
 process = subprocess.Popen([str(pathlib.Path(args.server).resolve())], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
