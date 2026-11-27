@@ -15,11 +15,11 @@ It is a single Rust crate, `video-mcp`. The media engine lives in `src/`, the MC
    winget install Kitware.CMake
    ```
 
-2. **Get the code and run setup:**
+2. **Get the code and run setup.** Clone to a short path such as `C:\src\video-mcp`. whisper.cpp's MSBuild build fails when the build folder's path gets long (Windows' 260-character limit), and setup stops early if it would.
 
    ```powershell
-   git clone <repository-url> video-mcp
-   cd video-mcp
+   git clone <repository-url> C:\src\video-mcp
+   cd C:\src\video-mcp
    powershell -ExecutionPolicy Bypass -File scripts\setup.ps1
    ```
 

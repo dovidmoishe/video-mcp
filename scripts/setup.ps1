@@ -175,8 +175,15 @@ if ($cmake) {
 }
 if (-not $cmakeDir) { $missing += 'CMake: winget install Kitware.CMake' }
 if (-not (Get-Command tar -ErrorAction SilentlyContinue)) { $missing += 'tar.exe (included with Windows 10 1803 and later)' }
+# whisper.cpp builds through MSBuild, whose file tracker fails on paths over 260
+# characters even with Windows long paths enabled. Its deepest files sit about 145
+# characters below the Cargo target folder, so that folder's path must stay short.
+$targetFull = [IO.Path]::GetFullPath((Join-Path $root $TargetDirectory))
+if ($targetFull.Length -gt 99) {
+    $missing += "A shorter folder: the build folder $targetFull is $($targetFull.Length) characters long; whisper.cpp's build needs at most 99. Clone the repository to a short path such as C:\src\video-mcp."
+}
 if ($missing.Count -gt 0) {
-    Write-Host 'Missing prerequisites. Install them, open a new terminal, then run this script again:' -ForegroundColor Yellow
+    Write-Host 'Setup cannot continue yet. Fix these, open a new terminal, then run this script again:' -ForegroundColor Yellow
     foreach ($item in $missing) { Write-Host "  - $item" }
     exit 1
 }
