@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn locally_different_colors_are_not_lost_to_grayscale() {
         let mut first = vec![0; 96 * 96 * 3];
-        for p in first.chunks_exact_mut(3) {
+        for p in first.as_chunks_mut::<3>().0 {
             p[0] = 90;
         }
         let mut second = first.clone();

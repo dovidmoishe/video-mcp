@@ -45,8 +45,8 @@ pub(crate) fn display_orientation(
         (side.kind() == codec::packet::side_data::Type::DisplayMatrix && data.len() >= 36).then(
             || {
                 let mut matrix = [0i32; 9];
-                for (value, bytes) in matrix.iter_mut().zip(data.chunks_exact(4)) {
-                    *value = i32::from_ne_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+                for (value, bytes) in matrix.iter_mut().zip(data.as_chunks::<4>().0) {
+                    *value = i32::from_ne_bytes(*bytes);
                 }
                 matrix
             },

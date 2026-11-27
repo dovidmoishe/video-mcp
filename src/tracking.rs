@@ -57,8 +57,7 @@ impl PatchTracker {
             return Ok(failure("unavailable_template"));
         }
         let mut error = 0.0;
-        let status;
-        if self.template.is_empty() {
+        let status = if self.template.is_empty() {
             let relative = Region {
                 x: (target.x - view.x) / view.width,
                 y: (target.y - view.y) / view.height,
@@ -91,7 +90,7 @@ impl PatchTracker {
                 self.disabled = true;
                 return Ok(failure("low_texture_template"));
             }
-            status = "reference";
+            "reference"
         } else {
             if self.image_shape != (w, h) {
                 return Ok(failure("image_dimensions_changed"));
@@ -127,8 +126,8 @@ impl PatchTracker {
                 return Ok(failure("ambiguous"));
             }
             self.position = (best.1, best.2);
-            status = "matched";
-        }
+            "matched"
+        };
         let (x, y) = self.position;
         let (tw, th) = self.shape;
         Ok(MotionObservation {

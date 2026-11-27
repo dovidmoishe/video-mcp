@@ -685,7 +685,9 @@ mod native {
             previous = Some(&sample.pixels);
             let luma = sample
                 .pixels
-                .chunks_exact(3)
+                .as_chunks::<3>()
+                .0
+                .iter()
                 .map(|p| u64::from(p[0]) * 54 + u64::from(p[1]) * 183 + u64::from(p[2]) * 19)
                 .sum::<u64>() as f64
                 / (f64::from(sample.width) * f64::from(sample.height) * 256.0);
