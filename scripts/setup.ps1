@@ -39,7 +39,18 @@ function Get-Sha256([string]$Path) { (Get-FileHash -LiteralPath $Path -Algorithm
 function Save-Verified([string]$Url, [string]$Sha256, [string]$Path) {
     $partial = "$Path.partial"
     Write-Step "Downloading $Url"
-    Invoke-WebRequest -Uri $Url -OutFile $partial -UseBasicParsing
+    # Retry transient network failures (DNS hiccups, timeouts, dropped connections).
+    for ($attempt = 1; ; $attempt++) {
+        try {
+            Invoke-WebRequest -Uri $Url -OutFile $partial -UseBasicParsing
+            break
+        } catch {
+            if (Test-Path -LiteralPath $partial) { Remove-Item -LiteralPath $partial -Force }
+            if ($attempt -ge 4) { throw "Download failed after $attempt attempts: $Url ($($_.Exception.Message))" }
+            Write-Host "    Attempt $attempt failed: $($_.Exception.Message) Retrying in $(10 * $attempt) seconds."
+            Start-Sleep -Seconds (10 * $attempt)
+        }
+    }
     $actual = Get-Sha256 $partial
     if ($actual -ne $Sha256) {
         Remove-Item -LiteralPath $partial -Force
